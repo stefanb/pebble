@@ -8,7 +8,9 @@ import (
 	"bytes"
 	stdcmp "cmp"
 	"fmt"
+	"maps"
 	"math"
+	"os"
 	"slices"
 	"sort"
 	"strings"
@@ -2132,6 +2134,8 @@ func NewL0Organizer(comparer *base.Comparer, flushSplitBytes int64) *L0Organizer
 	return o
 }
 
+const logL0Updates = true
+
 // PrepareUpdate is the first step in the two-step process to update the
 // L0Organizer. This first step performs as much work as it can without
 // modifying the L0Organizer.
@@ -2150,9 +2154,34 @@ func (o *L0Organizer) PrepareUpdate(bve *BulkVersionEdit, newVersion *Version) L
 
 	if len(addedL0Tables) == 0 && len(deletedL0Tables) == 0 {
 		return L0PreparedUpdate{
-			generation:   o.generation,
-			newSublevels: o.l0Sublevels,
+			generation: o.generation,
 		}
+	}
+
+	if logL0Updates {
+		out := os.Stderr
+		fmt.Fprintf(out, "update %d\n", o.generation)
+		tableNums := slices.Collect(maps.Keys(deletedL0Tables))
+
+		printTable := func(op string, m *TableMetadata) {
+			fmt.Fprintf(out, "%s %s:[hex:%x#%s,%s-hex:%xs#%s,%s] seqnums:[%d-%d]\n",
+				op, m.FileNum,
+				m.Smallest.UserKey, m.Smallest.SeqNum(), m.Smallest.Kind(),
+				m.Largest.UserKey, m.Largest.SeqNum(), m.Largest.Kind(),
+				m.SmallestSeqNum, m.LargestSeqNum,
+			)
+		}
+
+		slices.Sort(tableNums)
+		for _, n := range tableNums {
+			printTable("del", deletedL0Tables[n])
+		}
+		tableNums = slices.Collect(maps.Keys(addedL0Tables))
+		slices.Sort(tableNums)
+		for _, n := range tableNums {
+			printTable("add", addedL0Tables[n])
+		}
+		fmt.Fprintf(out, "----\n\n")
 	}
 
 	if len(deletedL0Tables) == 0 {
@@ -2195,6 +2224,10 @@ func (o *L0Organizer) PerformUpdate(prepared L0PreparedUpdate, newVersion *Versi
 		panic("invalid L0 update generation")
 	}
 	o.levelMetadata = newVersion.Levels[0]
+	if prepared.addL0Files == nil && prepared.newSublevels == nil {
+		// No update to L0
+		return
+	}
 	o.generation++
 	if prepared.addL0Files != nil {
 		newSublevels := o.l0Sublevels.addL0Files(prepared.addL0Files, o.flushSplitBytes, &o.levelMetadata)
