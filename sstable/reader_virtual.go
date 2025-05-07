@@ -6,6 +6,7 @@ package sstable
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/cockroachdb/pebble/internal/base"
 	"github.com/cockroachdb/pebble/internal/invariants"
@@ -74,7 +75,7 @@ func MakeVirtualReader(reader *Reader, p VirtualReaderParams) VirtualReader {
 	// It's important that no non-zero fields (like NumDeletions, NumRangeKeySets)
 	// become zero (or vice-versa).
 	if invariants.Enabled && (scale(1) != 1 || scale(0) != 0) {
-		panic("bad scale()")
+		panic(fmt.Sprintf("bad scale(): p.Size=%d  p.BackingSize=%d", p.Size, p.BackingSize))
 	}
 
 	physical := &reader.Properties

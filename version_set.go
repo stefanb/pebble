@@ -7,6 +7,7 @@ package pebble
 import (
 	"fmt"
 	"io"
+	"runtime/debug"
 	"sync"
 	"sync/atomic"
 
@@ -446,6 +447,13 @@ func (vs *versionSet) logAndApply(
 		vs.opts.Logger.Fatalf("MANIFEST not locked for writing")
 	}
 	defer vs.logUnlockAndInvalidatePickedCompactionCache()
+
+	for i := range ve.NewTables {
+		if ve.NewTables[i].Meta.Size == 0 {
+			debug.PrintStack()
+			panic(fmt.Sprintf("zero size table %v", ve.NewTables[i].Meta))
+		}
+	}
 
 	if ve.MinUnflushedLogNum != 0 {
 		if ve.MinUnflushedLogNum < vs.minUnflushedLogNum ||
