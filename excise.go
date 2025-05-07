@@ -423,14 +423,10 @@ func determineExcisedTableSize(
 	if err != nil {
 		return err
 	}
+	// There are no guarantees on the estimation; make sure we have sane values.
+	size = max(size, 1)
+	size = min(size, originalTable.FileBacking.Size)
 	excisedTable.Size = size
-	if size == 0 {
-		// On occasion, estimateSize gives us a low estimate, i.e. a 0 file size,
-		// such as if the excised file only has range keys/dels and no point
-		// keys. This can cause panics in places where we divide by file sizes.
-		// Correct for it here.
-		excisedTable.Size = 1
-	}
 	return nil
 }
 

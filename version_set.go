@@ -7,7 +7,6 @@ package pebble
 import (
 	"fmt"
 	"io"
-	"runtime/debug"
 	"sync"
 	"sync/atomic"
 
@@ -450,8 +449,10 @@ func (vs *versionSet) logAndApply(
 
 	for i := range ve.NewTables {
 		if ve.NewTables[i].Meta.Size == 0 {
-			debug.PrintStack()
 			panic(fmt.Sprintf("zero size table %v", ve.NewTables[i].Meta))
+		}
+		if ve.NewTables[i].Meta.Size > ve.NewTables[i].Meta.FileBacking.Size {
+			panic(fmt.Sprintf("virtual table %v size %d > backing size %d", ve.NewTables[i].Meta, ve.NewTables[i].Meta.Size, ve.NewTables[i].Meta.FileBacking.Size))
 		}
 	}
 
