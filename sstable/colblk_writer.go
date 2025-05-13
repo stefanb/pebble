@@ -473,6 +473,13 @@ func (w *RawColumnWriter) add(
 		w.dataBlock.Add(key, valueStoredWithKey, valuePrefix, eval.kcmp, eval.isObsolete)
 		w.pendingDataBlockSize = w.dataBlock.Size()
 	} else {
+		if size > 200_000 {
+			panic(fmt.Sprintf(
+				"size: %d  previous size: %d  keyLen: %d  valueLen: %d; flush governor: %s\nkey: %s",
+				size, w.pendingDataBlockSize, len(key.UserKey), valueLen, &w.dataFlush,
+				w.comparer.FormatKey(key.UserKey),
+			))
+		}
 		// We're not flushing the data block, and we're committing to including
 		// the current KV in the block. Remember the new size of the data block
 		// with the current KV.
